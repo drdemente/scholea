@@ -1,0 +1,76 @@
+{
+  "name": "scholea",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "An open-source, student-focused guided research pathway app. Rigor that feels like a journey, not a chore.",
+  "license": "Apache-2.0",
+  "author": "drdemente",
+  "homepage": "https://github.com/drdemente/scholea#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drdemente/scholea.git"
+  },
+  "bugs": {
+    "url": "https://github.com/drdemente/scholea/issues"
+  },
+  "keywords": [
+    "research",
+    "systematic-review",
+    "meta-analysis",
+    "evidence-synthesis",
+    "prisma",
+    "cochrane",
+    "grade",
+    "methodology",
+    "academic",
+    "students",
+    "local-first",
+    "offline",
+    "react",
+    "tauri"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:supabase": "stack=$(supabase status -o env) && eval \"$stack\" && export API_URL PUBLISHABLE_KEY SECRET_KEY MAILPIT_URL DB_URL && deno test --config supabase/functions/tests/deno.json --no-prompt --allow-net=127.0.0.1 --allow-env=API_URL,PUBLISHABLE_KEY,SECRET_KEY,MAILPIT_URL,DB_URL supabase/functions/tests",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.1.1",
+    "@fontsource-variable/jetbrains-mono": "^5.1.2",
+    "@fontsource-variable/plus-jakarta-sans": "^5.1.1",
+    "@fontsource-variable/source-serif-4": "^5.1.1",
+    "@supabase/supabase-js": "^2.117.3",
+    "dexie": "^4.0.10",
+    "dexie-react-hooks": "^1.1.7",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.2"
+  },
+  "optionalDependencies": {
+    "@tauri-apps/plugin-http": "^2"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "jsdom": "^25.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^3.2.4"
+  }
+}

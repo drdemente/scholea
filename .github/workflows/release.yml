@@ -1,0 +1,514 @@
+name: Release
+run-name: Release ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+# Builds the web bundle and the desktop apps for macOS, Windows and Linux, and
+# attaches them to the GitHub Release of a version tag.
+#
+# It starts in two ways:
+#   - A new tag such as v0.2.0 arrives. Publishing a release on GitHub with a
+#     new tag creates the tag, and so does
+#     `git tag v0.2.0 && git push origin v0.2.0`.
+#   - Someone runs it by hand (Actions, Release, Run workflow, with "Use
+#     workflow from" left on the branch `main`) and types a tag that exists.
+#     That builds the tag again with this file as it is on `main`, and replaces
+#     the files of the same name on the tag's release. Choosing the tag under
+#     "Use workflow from", or re-running the run that the tag started, uses
+#     this file as it was at that tag instead.
+#
+# Every build attaches its files to one release, which the "Pick the release"
+# job chooses before anything is built: the published release of the tag, or
+# else the tag's draft, or else a new draft that is left for a person to
+# publish.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "A version tag that exists, to build again. For example v0.1.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# One run at a time for a tag, so two runs never write to its release at once.
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+# The optional account backend. Both values are repository VARIABLES, not
+# secrets: they are compiled into every build and are public by design. Leave
+# both unset to release the guest-only app. This workflow needs no secret
+# besides the GITHUB_TOKEN that GitHub provides.
+env:
+  VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+jobs:
+  # Runs first. Every other job waits for it, so a half-set or unsafe setting
+  # stops the release before anything is built or created.
+  account-settings:
+    name: Account settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Check the account settings
+        shell: bash
+        run: |
+          # An unset variable arrives as an empty string. The app trims each
+          # value and treats an empty one as unset, and so does this check.
+          trim() {
+            local v="$1"
+            v="${v#"${v%%[![:space:]]*}"}"
+            v="${v%"${v##*[![:space:]]}"}"
+            printf '%s' "$v"
+          }
+          url="$(trim "$VITE_SUPABASE_URL")"
+          key="$(trim "$VITE_SUPABASE_PUBLISHABLE_KEY")"
+
+          if [ -z "$url" ] && [ -z "$key" ]; then
+            echo "Accounts: disabled. Neither VITE_SUPABASE_URL nor VITE_SUPABASE_PUBLISHABLE_KEY is set, so this release is the guest-only app." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ -z "$url" ] || [ -z "$key" ]; then
+            echo "::error::Only one of the repository variables VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY is set. Set both, or neither for the guest-only app."
+            exit 1
+          fi
+
+          case "$url$key" in
+            *[[:space:]]*)
+              echo "::error::VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY has a space or a line break inside it. Paste each value again."
+              exit 1
+              ;;
+          esac
+
+          case "$key" in
+            sb_secret_*)
+              echo "::error::VITE_SUPABASE_PUBLISHABLE_KEY holds a secret key (sb_secret_...). It would be published inside every build. Use the publishable key instead, and replace the secret key in the Supabase dashboard."
+              exit 1
+              ;;
+          esac
+
+          # The older kind of secret key is a JWT whose role is service_role.
+          payload="$(printf '%s' "$key" | cut -s -d. -f2 | tr '_-' '/+')"
+          case $(( ${#payload} % 4 )) in
+            2) payload="$payload==" ;;
+            3) payload="$payload=" ;;
+          esac
+          claims=""
+          if [ -n "$payload" ]; then
+            claims="$(printf '%s' "$payload" | base64 -d 2>/dev/null | tr -d '[:space:]\000' || true)"
+          fi
+          case "$claims" in
+            *'"role":"service_role"'*)
+              echo "::error::VITE_SUPABASE_PUBLISHABLE_KEY holds a service_role key. It would be published inside every build. Use the publishable key instead, and replace the service_role key in the Supabase dashboard."
+              exit 1
+              ;;
+          esac
+
+          # The app drops an address it cannot read (no host, or not a web
+          # address) and would then build as the guest-only app without saying
+          # so. A release also takes https only: the desktop app's content
+          # security policy lets it reach plain http on this computer alone.
+          label='[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?'
+          address="^https://$label(\\.$label)*(:[0-9]{1,5})?(/[^?#]*)?\$"
+          if [[ ! "$url" =~ $address ]]; then
+            echo "::error::VITE_SUPABASE_URL must be the full project address: https://, then a host name, for example https://<project-ref>.supabase.co."
+            exit 1
+          fi
+
+          echo "Accounts: enabled. Builds will use $url." | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Picks the one release that every build attaches its files to. When each
+  # build looked for a release by itself, a release that was already published
+  # on GitHub was passed over: the installers went to a separate draft, and the
+  # published release got the web bundle alone.
+  release:
+    name: Pick the release
+    needs: account-settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+      id: ${{ steps.pick.outputs.id }}
+    steps:
+      - name: Find the release of the tag, or create a draft
+        id: pick
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          # [A-Za-z] means the ASCII letters only in the C locale.
+          export LC_ALL=C
+
+          # A person types the tag when the workflow is run by hand, so its
+          # shape is checked before it goes into an address or a file name.
+          if [[ ! "$TAG" =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            # Shown with every other character replaced, so that a line break in
+            # what was typed cannot start a second workflow command.
+            shown="${TAG//[^0-9A-Za-z._-]/?}"
+            hint=""
+            if [ "$shown" != "$TAG" ]; then
+              hint=" Each ? stands for a character that is not allowed, such as a space or a slash."
+            fi
+            echo "::error::\"$shown\" is not a tag this workflow builds. A version tag starts with v and holds only letters, digits, dots, hyphens and underscores, for example v0.2.0.$hint"
+            exit 1
+          fi
+
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+          work="$(mktemp -d)"
+
+          # request METHOD PATH [JSON]. The answer's body goes to $work/body
+          # and its HTTP status is printed. Only a read is tried again when
+          # GitHub is briefly unavailable: trying a create again could leave
+          # two releases.
+          request() {
+            local method="$1" path="$2" data="${3:-}"
+            local args=(-sS -X "$method" -o "$work/body" -w '%{http_code}'
+              -H "Authorization: Bearer $GH_TOKEN"
+              -H "Accept: application/vnd.github+json"
+              -H "X-GitHub-Api-Version: 2022-11-28")
+            if [ "$method" = GET ]; then
+              args+=(--retry 3 --retry-delay 2)
+            fi
+            if [ -n "$data" ]; then
+              args+=(-H "Content-Type: application/json" --data "$data")
+            fi
+            curl "${args[@]}" "$api/$path"
+          }
+
+          # refuse WHAT STATUS: stop, with what GitHub answered.
+          refuse() {
+            local said
+            said="$(jq -r '.message // empty' "$work/body" 2>/dev/null || true)"
+            said="${said//[$'\r\n']/ }"
+            echo "::error::$1 did not work. GitHub answered HTTP $2. $said"
+            exit 1
+          }
+
+          status="$(request GET "git/ref/tags/$TAG")"
+          case "$status" in
+            200) ;;
+            404)
+              echo "::error::There is no tag $TAG in this repository. Type a tag exactly as the repository's Tags page shows it."
+              exit 1
+              ;;
+            *) refuse "Looking up the tag $TAG" "$status" ;;
+          esac
+
+          # 1. The published release of the tag. A release that was published
+          #    on GitHub a moment ago can take a few seconds to be listed, so a
+          #    miss is checked again before a draft is created beside it.
+          id=""
+          state=""
+          for attempt in 1 2 3; do
+            status="$(request GET "releases/tags/$TAG")"
+            case "$status" in
+              200)
+                # On its own line, so that an answer jq cannot read stops the step.
+                draft="$(jq -r '.draft' "$work/body")"
+                if [ "$draft" = "false" ]; then
+                  # With release immutability switched on, a published release
+                  # takes no more files. Better to say so now than after the builds.
+                  if [ "$(jq -r '.immutable // false' "$work/body")" = "true" ]; then
+                    echo "::error::The release of $TAG is published and immutable, so GitHub takes no more files on it. Nothing was built."
+                    exit 1
+                  fi
+                  id="$(jq -r '.id' "$work/body")"
+                  state="published"
+                  break
+                fi
+                ;;
+              404) ;;
+              *) refuse "Looking up the release of $TAG" "$status" ;;
+            esac
+            if [ "$attempt" -lt 3 ]; then
+              sleep 5
+            fi
+          done
+
+          # 2. Drafts. GitHub does not find a draft by its tag, so every
+          #    release is listed and the drafts that carry the tag are counted.
+          : > "$work/drafts"
+          : > "$work/listed"
+          page=1
+          while :; do
+            status="$(request GET "releases?per_page=100&page=$page")"
+            if [ "$status" != 200 ]; then
+              refuse "Listing the releases" "$status"
+            fi
+            jq -r --arg tag "$TAG" '.[] | select(.draft == true and .tag_name == $tag) | .id' "$work/body" >> "$work/drafts"
+            jq -r --arg tag "$TAG" '.[] | select(.draft == false and .tag_name == $tag) | "\(.id) \(.immutable // false)"' "$work/body" >> "$work/listed"
+            # On its own line and checked, so that an answer that is not a list
+            # stops the step and cannot keep the loop going.
+            count="$(jq -r 'if type == "array" then length else empty end' "$work/body")"
+            if [ -z "$count" ]; then
+              echo "::error::Listing the releases did not work. GitHub's answer was not a list."
+              exit 1
+            fi
+            if [ "$count" -lt 100 ]; then
+              break
+            fi
+            page=$((page + 1))
+          done
+          drafts="$(grep -c . "$work/drafts" || true)"
+
+          # The lookup by tag missed, and the list still shows a published release
+          # of the tag: that one is taken, and no draft is created beside it.
+          if [ -z "$id" ] && [ -s "$work/listed" ]; then
+            read -r id locked < "$work/listed"
+            if [ "$locked" = "true" ]; then
+              echo "::error::The release of $TAG is published and immutable, so GitHub takes no more files on it. Nothing was built."
+              exit 1
+            fi
+            state="published"
+          fi
+
+          if [ -n "$id" ]; then
+            if [ "$drafts" -gt 0 ]; then
+              echo "::warning::$drafts draft release(s) also carry the tag $TAG. The files go to the published release and the drafts are left as they are. On the Releases page they are the entries marked Draft. Delete those, and keep the published release."
+            fi
+          elif [ "$drafts" -eq 1 ]; then
+            id="$(head -n 1 "$work/drafts")"
+            state="draft"
+          elif [ "$drafts" -gt 1 ]; then
+            echo "::error::$drafts draft releases carry the tag $TAG, so there is no telling which one the files belong to. On the Releases page, delete all but one of the entries marked Draft, then run this workflow again and type $TAG."
+            exit 1
+          else
+            # 3. No release yet: the tag was pushed without one.
+            new="$(jq -n --arg tag "$TAG" '{
+              tag_name: $tag,
+              name: ("Scholea " + $tag),
+              body: "Desktop apps for macOS, Windows and Linux, and the static web bundle.",
+              draft: true
+            }')"
+            status="$(request POST "releases" "$new")"
+            if [ "$status" != 201 ]; then
+              refuse "Creating a draft release for $TAG" "$status"
+            fi
+            id="$(jq -r '.id' "$work/body")"
+            state="new"
+          fi
+
+          if [[ ! "$id" =~ ^[0-9]+$ ]]; then
+            echo "::error::GitHub's answer held no release id for $TAG."
+            exit 1
+          fi
+
+          # The installers are named after the version in tauri.conf.json, not
+          # after the tag. A difference is worth knowing about, and it does not
+          # stop the release.
+          status="$(request GET "contents/src-tauri/tauri.conf.json?ref=refs/tags/$TAG")"
+          if [ "$status" = 200 ]; then
+            version="$(jq -r '.content // empty' "$work/body" | base64 -d 2>/dev/null | jq -r '.version // empty' 2>/dev/null || true)"
+            # The file is as it is at the tag, so its text is not trusted to be
+            # one plain line.
+            version="${version//[^0-9A-Za-z.+_-]/?}"
+            if [ -n "$version" ] && [ "v$version" != "$TAG" ]; then
+              echo "::warning::The tag is $TAG, but src-tauri/tauri.conf.json at that tag says version $version. The installers are named after $version."
+            fi
+          fi
+
+          {
+            echo "tag=$TAG"
+            echo "id=$id"
+          } >> "$GITHUB_OUTPUT"
+
+          case "$state" in
+            published) note="The files are attached to the published release of $TAG as each build finishes." ;;
+            draft) note="The files are attached to the draft release of $TAG. Publish it on the Releases page when the builds are done." ;;
+            *) note="A draft release was created for $TAG. Publish it on the Releases page when the builds are done." ;;
+          esac
+          echo "$note" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  desktop:
+    name: Desktop (${{ matrix.platform }})
+    needs: release
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # universal .dmg / .app
+            args: "--target universal-apple-darwin"
+          - platform: ubuntu-22.04 # .deb / .AppImage / .rpm
+            args: ""
+          - platform: windows-latest # .msi / .exe (NSIS)
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      # tauri-action skips every upload and still ends green when it is given
+      # no release id. That would be the first release over again, so a missing
+      # id or tag stops the job here, before anything is built.
+      - name: Check what the "Pick the release" job passed on
+        shell: bash
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+        run: |
+          export LC_ALL=C
+          if [[ ! "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]] || [[ ! "$TAG" =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::No release id or no tag reached this job, so the installers would be attached to nothing. Run the workflow again from the start."
+            exit 1
+          fi
+
+      # The code of the tag, also when the workflow was started by hand from
+      # another branch.
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ needs.release.outputs.tag }}
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf \
+            build-essential curl wget file \
+            libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: pnpm install --frozen-lockfile
+
+      # tauri-action runs the config's beforeBuildCommand (pnpm build), then
+      # bundles the desktop artifacts and uploads them to the release. The
+      # build reads the two VITE_SUPABASE_* values from the environment above.
+      # It is given the release by id and no tag. Given a tag, it looks for a
+      # release by itself: asked for a draft, it passes over a release that is
+      # already published, and asked for a published one, it rewrites the title
+      # and notes of the release it finds. The app has no updater, so no
+      # updater file is made.
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.release.outputs.id }}
+          uploadUpdaterJson: false
+          args: ${{ matrix.args }}
+
+  web:
+    name: Static web bundle
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check what the "Pick the release" job passed on
+        shell: bash
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+        run: |
+          export LC_ALL=C
+          if [[ ! "$RELEASE_ID" =~ ^[1-9][0-9]*$ ]] || [[ ! "$TAG" =~ ^v[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+            echo "::error::No release id or no tag reached this job, so the web bundle would be attached to nothing. Run the workflow again from the start."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ needs.release.outputs.tag }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Zip the static bundle
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: (cd dist && zip -r "../scholea-web-$TAG.zip" .)
+      - name: Attach the bundle to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release.outputs.tag }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+        run: |
+          set -euo pipefail
+          file="scholea-web-$TAG.zip"
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY"
+          work="$(mktemp -d)"
+          auth=(-H "Authorization: Bearer $GH_TOKEN"
+            -H "Accept: application/vnd.github+json"
+            -H "X-GitHub-Api-Version: 2022-11-28")
+
+          # Checked before anything is removed from the release.
+          if [ ! -s "$file" ]; then
+            echo "::error::$file is missing or empty, so there is nothing to attach."
+            exit 1
+          fi
+
+          # call WHAT CURL-ARGUMENTS. The answer's body goes to $work/body, never to
+          # a pipe: curl empties a file before it tries again, and it cannot take
+          # back what it already wrote to a pipe. A refusal stops the step with
+          # GitHub's own reason.
+          call() {
+            local what="$1" status said
+            shift
+            : > "$work/body"
+            status="$(curl -sS -o "$work/body" -w '%{http_code}' "${auth[@]}" "$@")"
+            case "$status" in
+              2??) ;;
+              *)
+                said="$(jq -r '(.message? // "") as $m
+                  | [.errors[]? | .code? // .message? // empty | select(type == "string")] as $e
+                  | if ($e | length) > 0 then $m + " (" + ($e | join(", ")) + ")" else $m end' "$work/body" 2>/dev/null || true)"
+                said="${said//[$'\r\n']/ }"
+                echo "::error::$what did not work. GitHub answered HTTP $status. $said"
+                exit 1
+                ;;
+            esac
+          }
+
+          # The release by its id, never by its tag: a tag can have a published
+          # release and a leftover draft at once.
+          call "Reading the release" --retry 3 --retry-delay 2 "$api/releases/$RELEASE_ID"
+          upload="$(jq -r '.upload_url // empty' "$work/body")"
+          upload="${upload%%\{*}"
+          # The token goes to this address, so it has to be this release's own
+          # upload address, reached the way the API is (https on GitHub).
+          if [[ "$upload" != "${GITHUB_API_URL%%://*}"://*/releases/"$RELEASE_ID"/assets ]]; then
+            echo "::error::GitHub's answer held no upload address for release $RELEASE_ID."
+            exit 1
+          fi
+
+          # A second build of the same tag replaces the file the first attached.
+          call "Listing the files of the release" --retry 3 --retry-delay 2 "$api/releases/$RELEASE_ID/assets?per_page=100"
+          jq -r --arg name "$file" '.[] | select(.name == $name) | .id' "$work/body" > "$work/old-assets"
+          while IFS= read -r old; do
+            echo "Removing the $file attached by an earlier run."
+            call "Removing the earlier $file" -X DELETE "$api/releases/assets/$old"
+          done < "$work/old-assets"
+
+          call "Attaching $file" -X POST -H "Content-Type: application/zip" --data-binary "@$file" "$upload?name=$file"
+          jq -r '"Attached " + .name + ", " + (.size | tostring) + " bytes."' "$work/body"

@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or the friction you're hitting.
+      placeholder: As a researcher doing …, I find it hard to …
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like Scholea to do?
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of change is this?
+      options:
+        - Methodology / content (a study type, checklist, or appraisal instrument)
+        - Engineering (UI, engine, backend, tooling)
+        - Both / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: methodology-source
+    attributes:
+      label: Methodology source (for content changes)
+      description: >-
+        Cite the canonical guideline this is grounded in (Cochrane Handbook,
+        JBI, PRISMA 2020 & extensions, EQUATOR, GRADE, etc.).
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

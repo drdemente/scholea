@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-size: var(--text-base);
+    line-height: var(--lh-normal);
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+  }
+
+  /* Strong, brand-coloured focus ring for any element relying on default
+     focus (we override with .focus-ring on glass surfaces). */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-outer);
+    outline-offset: 2px;
+    border-radius: var(--radius-input);
+  }
+
+  /* Honour reduced-motion at the CSS layer too, for non-Framer animations. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  ::selection {
+    background: var(--color-primary-soft);
+  }
+
+  /* Print: show only the compiled manuscript, styled like a journal article. */
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #paper-print,
+    #paper-print * {
+      visibility: visible;
+    }
+    #paper-print {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 0;
+      max-width: none;
+      font-family: Georgia, "Times New Roman", serif;
+      color: #000;
+      font-size: 11.5pt;
+      line-height: 1.5;
+    }
+    /* Justified body text, tight, print-black. */
+    #paper-print p {
+      text-align: justify;
+      color: #000;
+    }
+    #paper-print h1,
+    #paper-print h2 {
+      color: #000;
+    }
+    /* Interactive controls (chart export buttons, etc.) never print. */
+    #paper-print button {
+      display: none !important;
+    }
+    /* Keep each figure/table intact on one page where possible. */
+    #paper-print figure,
+    #paper-print table {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    #paper-print h2 {
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+    #paper-print svg {
+      max-width: 100%;
+      height: auto;
+    }
+  }
+}
+
+@layer utilities {
+  /* Visually hidden but available to screen readers. */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

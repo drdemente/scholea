@@ -1,0 +1,101 @@
+name: Bug report
+description: Report something that isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill out the sections
+        below so we can reproduce and fix it quickly.
+
+        **Never paste codes, passwords or keys** into an issue: no emailed
+        one-time code, no account password, no API key. Issues are public.
+        For a security problem, use the private report linked from SECURITY.md
+        instead of this form.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including what you expected instead.
+      placeholder: When I … I expected … but instead …
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: How are you running Scholea?
+      options:
+        - Web
+        - Desktop
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: signed-in
+    attributes:
+      label: Were you signed in?
+      description: >-
+        Scholea works without an account. Accounts are optional, and some
+        copies of Scholea have no Sign in button at all.
+      options:
+        - "No"
+        - "Yes"
+        - There is no Sign in button in my copy
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: study-type
+    attributes:
+      label: Which study type? (if relevant)
+      options:
+        - Not applicable
+        - Systematic review
+        - Meta-analysis
+        - Scoping review
+        - Narrative review
+        - Umbrella review
+        - Cross-sectional
+        - Cohort
+        - Case-control
+        - RCT
+        - Quasi-experimental
+        - Case report / series
+        - Diagnostic accuracy
+        - Qualitative
+        - Survey
+        - Mixed-methods
+        - Economic
+        - Animal
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser / OS / app version. For desktop, include the installer type.
+      placeholder: |
+        - OS: macOS 14.5
+        - Browser: Chrome 126 (or Desktop app v0.1.0)
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output / screenshots
+      description: >-
+        Paste any relevant console errors or attach screenshots. Remove codes,
+        passwords, keys and other people's email addresses first.
+      render: shell
+    validations:
+      required: false

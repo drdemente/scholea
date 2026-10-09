@@ -1,0 +1,297 @@
+/* =========================================================================
+   Scholea — Design Tokens
+   "Rigor that feels like a journey, not a chore."
+   --------------------------------------------------------------------------
+   Themes mount via data-attributes on <html>:
+     data-mode="light"            warm Paper base, luminous accents
+     data-mode="dark"             deep midnight Ink base, glowing glass
+   ========================================================================= */
+
+:root {
+  /* ---- Brand scales -------------------------------------------------- */
+  --violet-50:  #F1EFFE;
+  --violet-100: #E2DDFD;
+  --violet-200: #C6BCFB;
+  --violet-300: #A395F4;
+  --violet-400: #8473ED;
+  --violet-500: #6C5CE7;   /* Primary Violet */
+  --violet-600: #5848D6;
+  --violet-700: #4338CA;   /* Indigo-deep */
+  --violet-800: #36299C;
+  --violet-900: #281E73;
+
+  --turquoise-300: #6BDEDE;
+  --turquoise-400: #3FD0D0;
+  --turquoise-500: #14C8C8;
+  --turquoise-600: #10A4A4;
+  --turquoise-700: #0C7B7B;
+
+  --sky-300: #84C5F9;
+  --sky-400: #5DB6F6;
+  --sky-500: #38A8F4;
+  --sky-600: #1F8FDA;
+  --sky-700: #176FAB;
+
+  --sun-300: #FFD27A;
+  --sun-400: #FFC249;
+  --sun-500: #FFB020;
+  --sun-600: #E0930A;
+  --sun-700: #B07206;
+
+  --coral-300: #FFA8C2;
+  --coral-400: #FF87A9;
+  --coral-500: #FF5D8F;
+  --coral-600: #E83E76;
+  --coral-700: #B92858;
+
+  --mint-300: #7AE2B8;
+  --mint-400: #4FD6A0;
+  --mint-500: #2FCC8B;
+  --mint-600: #21AD73;
+  --mint-700: #18865A;
+
+  --danger-300: #FFA3A3;
+  --danger-400: #FF7878;
+  --danger-500: #FF5A5A;
+  --danger-600: #E63E3E;
+  --danger-700: #B82A2A;
+
+  /* ---- Neutral scale (warm) ----------------------------------------- */
+  --paper-50:  #FFFEFB;
+  --paper-100: #FAF9F5;
+  --paper-200: #F2F0E8;
+  --paper-300: #E7E4D7;
+  --paper-400: #CDC8B5;
+
+  --ink-300: #4A5168;
+  --ink-400: #2E3447;
+  --ink-500: #1A2138;
+  --ink-600: #0E1424;
+  --ink-700: #080C18;
+  --ink-800: #04070F;
+
+  /* ---- Motion + radii (theme-invariant) ----------------------------- */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit:     cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-micro:     150ms;
+  --dur-short:     220ms;
+  --dur-step:      380ms;
+  --dur-celebrate: 600ms;
+
+  --radius-input:  12px;
+  --radius-card:   20px;
+  --radius-modal:  22px;
+  --radius-pill:   999px;
+
+  /* ---- Type ramp (modular scale 1.200) ------------------------------ */
+  /* All four families ship under the SIL Open Font License (license-uniform).
+     Loaded locally via @fontsource-variable in src/main.tsx — no runtime
+     network, works offline in the Tauri build. */
+  --font-display: "Plus Jakarta Sans Variable", Inter, system-ui, sans-serif;
+  --font-body:    "Inter Variable", Inter, system-ui, sans-serif;
+  --font-serif:   "Source Serif 4 Variable", "Source Serif 4", Georgia, serif;
+  --font-mono:    "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --text-xs:   0.75rem;
+  --text-sm:   0.875rem;
+  --text-base: 1rem;
+  --text-md:   1.125rem;
+  --text-lg:   1.3125rem;
+  --text-xl:   1.5625rem;
+  --text-2xl:  1.875rem;
+  --text-3xl:  2.25rem;
+  --text-4xl:  2.6875rem;
+  --text-5xl:  3.1875rem;
+
+  --lh-tight:   1.15;
+  --lh-snug:    1.3;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  --features-data: "tnum" 1;
+}
+
+/* =========================================================================
+   LIGHT THEME — warm paper with luminous accents
+   ========================================================================= */
+:root,
+[data-mode="light"] {
+  color-scheme: light;
+
+  --bg-canvas:   var(--paper-100);
+  --bg-elevated: var(--paper-50);
+  --bg-sunken:   var(--paper-200);
+
+  --text-primary:   var(--ink-600);
+  --text-secondary: var(--ink-400);
+  --text-muted:     var(--ink-300);
+  --text-on-brand:  var(--paper-50);
+  --text-link:      var(--violet-700);
+
+  --color-primary:       var(--violet-500);
+  --color-primary-hover: var(--violet-600);
+  --color-primary-press: var(--violet-700);
+  --color-primary-soft:  color-mix(in oklab, var(--violet-500) 14%, transparent);
+  --color-accent:        var(--turquoise-500);
+  --color-accent-soft:   color-mix(in oklab, var(--turquoise-500) 14%, transparent);
+
+  --color-success:      var(--mint-500);
+  --color-success-soft: color-mix(in oklab, var(--mint-500) 16%, transparent);
+  --color-info:         var(--sky-500);
+  --color-info-soft:    color-mix(in oklab, var(--sky-500) 16%, transparent);
+  --color-warning:      var(--sun-500);
+  --color-warning-soft: color-mix(in oklab, var(--sun-500) 18%, transparent);
+  --color-danger:       var(--danger-500);
+  --color-danger-soft:  color-mix(in oklab, var(--danger-500) 16%, transparent);
+
+  --rob-low:          var(--mint-500);     /* shape: ● circle */
+  --rob-some-concern: var(--sun-500);      /* shape: ◆ diamond */
+  --rob-high:         var(--danger-500);   /* shape: ▲ triangle */
+
+  --border-hairline: rgba(14, 20, 36, 0.08);
+  --border-strong:   rgba(14, 20, 36, 0.16);
+  --divider:         rgba(14, 20, 36, 0.06);
+
+  --glass-1-fill:      rgba(255, 254, 251, 0.55);
+  --glass-1-border:    rgba(255, 255, 255, 0.55);
+  --glass-1-highlight: rgba(255, 255, 255, 0.80);
+  --glass-1-blur:      16px;
+  --glass-1-saturate:  140%;
+
+  --glass-2-fill:      rgba(255, 254, 251, 0.72);
+  --glass-2-border:    rgba(255, 255, 255, 0.65);
+  --glass-2-highlight: rgba(255, 255, 255, 0.95);
+  --glass-2-blur:      24px;
+  --glass-2-saturate:  160%;
+
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.6) inset,
+              0 1px 2px rgba(14, 20, 36, 0.06),
+              0 8px 24px -8px rgba(14, 20, 36, 0.10);
+  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.7) inset,
+              0 2px 4px rgba(14, 20, 36, 0.08),
+              0 18px 48px -12px rgba(14, 20, 36, 0.18);
+  --shadow-glow-primary: 0 0 0 4px color-mix(in oklab, var(--violet-500) 22%, transparent);
+  --shadow-glow-success: 0 0 0 4px color-mix(in oklab, var(--mint-500) 22%, transparent);
+
+  --mesh-stop-1: var(--violet-300);
+  --mesh-stop-2: var(--sky-300);
+  --mesh-stop-3: var(--turquoise-300);
+  --mesh-stop-4: var(--coral-300);
+  --mesh-opacity: 0.45;
+  --grain-opacity: 0.035;
+
+  --focus-ring-inner: var(--paper-50);
+  --focus-ring-outer: var(--violet-500);
+  --focus-ring-width: 3px;
+}
+
+/* =========================================================================
+   DARK THEME — deep midnight, glowing glass
+   ========================================================================= */
+[data-mode="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas:   var(--ink-600);
+  --bg-elevated: var(--ink-500);
+  --bg-sunken:   var(--ink-700);
+
+  --text-primary:   var(--paper-100);
+  --text-secondary: color-mix(in oklab, var(--paper-100) 78%, transparent);
+  --text-muted:     color-mix(in oklab, var(--paper-100) 58%, transparent);
+  --text-on-brand:  var(--paper-50);
+  --text-link:      var(--violet-300);
+
+  --color-primary:       var(--violet-400);
+  --color-primary-hover: var(--violet-300);
+  --color-primary-press: var(--violet-500);
+  --color-primary-soft:  color-mix(in oklab, var(--violet-400) 22%, transparent);
+  --color-accent:        var(--turquoise-400);
+  --color-accent-soft:   color-mix(in oklab, var(--turquoise-400) 22%, transparent);
+
+  --color-success:      var(--mint-400);
+  --color-success-soft: color-mix(in oklab, var(--mint-400) 22%, transparent);
+  --color-info:         var(--sky-400);
+  --color-info-soft:    color-mix(in oklab, var(--sky-400) 22%, transparent);
+  --color-warning:      var(--sun-400);
+  --color-warning-soft: color-mix(in oklab, var(--sun-400) 24%, transparent);
+  --color-danger:       var(--danger-400);
+  --color-danger-soft:  color-mix(in oklab, var(--danger-400) 22%, transparent);
+
+  --rob-low:          var(--mint-400);
+  --rob-some-concern: var(--sun-400);
+  --rob-high:         var(--danger-400);
+
+  --border-hairline: rgba(250, 249, 245, 0.10);
+  --border-strong:   rgba(250, 249, 245, 0.22);
+  --divider:         rgba(250, 249, 245, 0.06);
+
+  --glass-1-fill:      rgba(14, 20, 36, 0.45);
+  --glass-1-border:    rgba(255, 255, 255, 0.10);
+  --glass-1-highlight: rgba(255, 255, 255, 0.14);
+  --glass-1-blur:      18px;
+  --glass-1-saturate:  170%;
+
+  --glass-2-fill:      rgba(14, 20, 36, 0.62);
+  --glass-2-border:    rgba(255, 255, 255, 0.14);
+  --glass-2-highlight: rgba(255, 255, 255, 0.20);
+  --glass-2-blur:      28px;
+  --glass-2-saturate:  180%;
+
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.06) inset,
+              0 1px 2px rgba(0, 0, 0, 0.35),
+              0 10px 30px -10px rgba(0, 0, 0, 0.55);
+  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.10) inset,
+              0 4px 12px rgba(0, 0, 0, 0.45),
+              0 24px 64px -16px rgba(0, 0, 0, 0.65);
+  --shadow-glow-primary: 0 0 0 4px color-mix(in oklab, var(--violet-400) 35%, transparent),
+                         0 0 28px color-mix(in oklab, var(--violet-400) 30%, transparent);
+  --shadow-glow-success: 0 0 0 4px color-mix(in oklab, var(--mint-400) 35%, transparent),
+                         0 0 28px color-mix(in oklab, var(--mint-400) 30%, transparent);
+
+  --mesh-stop-1: var(--violet-700);
+  --mesh-stop-2: var(--sky-700);
+  --mesh-stop-3: var(--turquoise-700);
+  --mesh-stop-4: var(--coral-700);
+  --mesh-opacity: 0.55;
+  --grain-opacity: 0.05;
+
+  --focus-ring-inner: var(--ink-700);
+  --focus-ring-outer: var(--violet-300);
+  --focus-ring-width: 3px;
+}
+
+/* =========================================================================
+   Reduced motion — global kill switch (also enforced per-component in JS)
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-micro: 1ms;
+    --dur-short: 1ms;
+    --dur-step: 1ms;
+    --dur-celebrate: 1ms;
+  }
+}
+
+/* =========================================================================
+   Reduced transparency — collapse glass to opaque surfaces (Safari 17+ /
+   OS "Reduce Transparency"). Text contrast becomes deterministic.
+   ========================================================================= */
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  [data-mode="light"] {
+    --glass-1-fill: var(--paper-50);
+    --glass-2-fill: var(--paper-50);
+    --glass-1-blur: 0px;
+    --glass-2-blur: 0px;
+    --glass-1-saturate: 100%;
+    --glass-2-saturate: 100%;
+    --mesh-opacity: 0.25;
+    --grain-opacity: 0.025;
+  }
+  [data-mode="dark"] {
+    --glass-1-fill: var(--ink-500);
+    --glass-2-fill: var(--ink-500);
+    --mesh-opacity: 0.30;
+  }
+}

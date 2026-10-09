@@ -1,0 +1,24 @@
+[package]
+name = "scholea"
+version = "0.1.0"
+description = "A guided research pathway for students."
+authors = ["drdemente"]
+license = "Apache-2.0"
+repository = "https://github.com/drdemente/scholea"
+homepage = "https://github.com/drdemente/scholea"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "scholea_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-http = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

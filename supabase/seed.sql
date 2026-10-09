@@ -1,0 +1,2 @@
+-- Scholea seeds nothing: no users, no admin, no secrets.
+-- The first master admin is promoted by the instance owner; see docs/deployment.md.

@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build output
+dist
+dist-*
+*.local
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Environment files. Vite reads .env, .env.local, .env.<mode> and
+# .env.<mode>.local at build time, so none of them is committed: a committed
+# one would quietly give CI's guest build, and every fork's build, an account
+# backend. .env.example is the only one that is tracked.
+.env
+.env.*
+!.env.example
+
+# Tauri
+src-tauri/target
+src-tauri/gen
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Local tooling. Hidden folders at the top level are not part of the project,
+# apart from the two named here.
+/.*/
+!/.github/
+!/.vscode/
+/admin-app/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test / coverage
+coverage
